@@ -1,0 +1,205 @@
+---
+title: "Morton Analysis Report"
+author: "Young Oh"
+date: '2022-07-13'
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Working procedure
+
+The Question we are interested in;
+
+1) To what extent does root exudation rate vary among species? [ANOVA, though we're limited by study design - the 4-6 individual trees of each species are all located in the same plot, which isn't ideal for test assumptions.]
+2) Does root exudation rate vary with plant or root traits? Which variables best predict root exudation rates? [ordination/PERMANOVA; mixed linear models that are similar to ANOVA and regressions but take plot-level replicates into account]
+3) What are the relationships between root exudation rates (and other plant and root traits) and soil properties (rhizosphere effects in N cycling; aggregate stability)? [ordination/PERMANOVA; mixed linear models that are similar to ANOVA and regressions but take plot-level replicates into account]
+
+## Before starting to analyze..
+
+- The document will be update in Git hub (https://github.com/oh02rules/PhillipsLab) with the most updated code for the analysis
+- Library list; more to come with multivariate analyses
+library(plotrix)
+library(ggpmisc)
+library(ggplot2)
+library(ggpubr)
+library(magicaxis)
+library(car)
+library(emmeans)
+library(pacman)
+library(tidyverse)
+library(hrbrthemes)
+library(viridis)
+library(ggeffects)
+library(ggpmisc)
+
+## Question 1) To what extent does root exudation rate vary among species?
+To answer the question we perform an ANOVA on a fitted model with three factors, giving F-statistics
+```{r cars}
+setwd("/Users/young/Desktop/Git_Phillips_Lab/PhillipsLab/Morton_analyses")
+rtrait <- read.csv("Exudation_cleansed_exported_070722.csv")
+fit1 <- lm(Exudation_rate ~ Species, data=rtrait)
+fit2 <- lm(Exudation_rate ~ Myco, data=rtrait)
+fit3 <- lm(Exudation_rate ~ Phylo, data=rtrait)
+fit4 <- lm(Exudation_rate ~ Leaf, data=rtrait)
+summary(fit1)
+summary(fit2)
+summary(fit3)
+summary(fit4)
+```
+The ANOVA results show both Phylo and Myco types appear to be statistically significant, while species are not. 
+
+Next, we perform ANOVA to compare nested models by performing a likelihood ratio test among models.
+```{r}
+anova(fit1,fit2)
+anova(fit1,fit3)
+anova(fit1,fit4)
+```
+The ANOVA results show all nested models are significantly different.
+
+Because exudation rates that are nested along mycorrhizal types appear to be significantly different, we visualize the difference with a boxplot. 
+
+## Figures related to ANOVA analyses
+
+You can also embed plots, for example:
+```{r, echo=FALSE, eval=FALSE}
+library(ggpubr)
+library(plotrix)
+library(ggpmisc)
+library(ggplot2)
+library(ggpubr)
+library(magicaxis)
+library(car)
+library(emmeans)
+library(pacman)#This package is great for documents that you will be sharing – 
+#it means that your collaborators will not have to spend time finding any packages they don’t have.
+library(tidyverse)
+library(hrbrthemes)
+library(viridis)
+library(ggeffects)
+```
+
+```{r, echo=FALSE, eval=TRUE}
+library(ggpubr)
+library(tidyverse)
+library(hrbrthemes)
+library(viridis)
+library(ggeffects)
+AMvsECM <- rtrait %>% ggplot( aes(x = Myco, y = Exudation_rate, fill=Myco)) + geom_boxplot() +
+  scale_fill_viridis(discrete = TRUE, alpha=0.6) +
+  geom_jitter(color="black", size=0.4, alpha=0.9) +
+  theme_ipsum() +
+  theme(
+    legend.position="none",
+    plot.title = element_text(size=11)
+  ) +
+  ggtitle("Boxplot for exudation rate among groups: Myco Type") +
+  xlab("Myco. Type") + ylab(expression(log10~Exudation~rate~ ~(mgC~g^-1~day^-1))) + stat_compare_means(method = "anova")
+AMvsECM + scale_y_continuous(trans='log10')
+```
+
+The ANOVA results show the nested models with respect to MF types are significantly different.
+
+```{r, echo=FALSE, eval=TRUE}
+#Boxplot for exudation rate among groups: Phylo types
+Angio_vs_Gym <- rtrait %>% ggplot( aes(x = Phylo, y = Exudation_rate, fill=Phylo)) + geom_boxplot() +
+  scale_fill_viridis(discrete = TRUE, alpha=0.6) +
+  geom_jitter(color="black", size=0.4, alpha=0.9) +
+  theme_ipsum() +
+  theme(
+    legend.position="none",
+    plot.title = element_text(size=11)
+  ) +
+  ggtitle("Boxplot for exudation rate among groups: Phylo Type") +
+  xlab("Phylo Type") + ylab(expression(log10~Exudation~rate~ ~(mgC~g^-1~day^-1))) + stat_compare_means(method = "anova")
+Angio_vs_Gym + scale_y_continuous(trans='log10')
+```
+
+The ANOVA results show the nested models with respect to Phylo. types (angiosperm vs. gymnosperm) are significantly different.
+
+```{r, echo=FALSE, eval=TRUE}
+#Boxplot for exudation rate among groups: Leaf types
+dec_vs_ev <- rtrait %>% ggplot( aes(x = Leaf, y = Exudation_rate, fill=Leaf)) + geom_boxplot() +
+  scale_fill_viridis(discrete = TRUE, alpha=0.6) +
+  geom_jitter(color="black", size=0.4, alpha=0.9) +
+  theme_ipsum() +
+  theme(
+    legend.position="none",
+    plot.title = element_text(size=11)
+  ) +
+  ggtitle("Boxplot for exudation rate among groups: Phylo Type") +
+  xlab("Leaf Type") + ylab(expression(log10~Exudation~rate~ ~(mgC~g^-1~day^-1))) + stat_compare_means(method = "anova")
+dec_vs_ev + scale_y_continuous(trans='log10')
+#Not statistically different, 
+```
+
+The ANOVA results show the nested models with respect to leaf types (deciduous vs. evergreen) are not significantly different.
+
+
+```{r, echo=FALSE, eval=TRUE}
+p1 <- ggplot(rtrait, aes(x=Species, y=Exudation_rate, fill=Myco)) + 
+  geom_boxplot() +
+  facet_wrap(~Myco) + geom_jitter(color="black", size=0.4, alpha=0.9) + stat_compare_means(method = "anova")+
+  xlab("Species with MF Type") + ylab(expression(log10~Exudation~rate~ ~(mgC~g^-1~day^-1)))+
+  ggtitle("Boxplot for exudation rate among groups: Myco. Type")
+
+p1 + facet_wrap(~Myco) + scale_y_continuous(trans='log10')
+```
+
+The ANOVA results show the extent of statistical significance among species differs among different mycorrhizal associations showing EcM tree species vary more. The figure needs to be enlarged to show all the label on the y-axis.
+
+## 2) Does root exudation rate vary with plant or root traits? Which variables best predict root exudation rates?
+
+To answer the questions, we need to construct mixed linear models that are similar to ANOVA and regressions but take plot-level replicates into account. To be continued.
+
+First, we fit the model with exudation rate as the response and Surf_area as the predictor and have a look at the output:
+As a example, we relate surface area to exudation rate that were thought to have a causal relationship. 
+```{r, echo=FALSE, eval=TRUE}
+prelim_plot <- ggplot(rtrait, aes(x = Surf_area, y = Exudation_rate)) +
+geom_point() +
+geom_smooth(method = "lm") +  stat_regline_equation(label.y = 400, aes(label = ..eq.label..)) +
+  stat_regline_equation(label.y = 350, aes(label = ..rr.label..))
+prelim_plot
+```
+
+It appears to have some correlation here. But, we need to decompose effects to construct the best fitting model.
+
+Further, we separate the correlation between surface area and exudation rate into different mycorrhizal types (AM vs EcM) since we found the significant difference in exudation rates through ANOVA. 
+```{r, echo=FALSE, eval=TRUE}
+plt <- ggplot(rtrait,aes(x = Surf_area, y = Exudation_rate, color=Myco, shape=Myco)) + 
+  geom_point(size=3) + 
+  geom_smooth(method = "lm", aes(fill=Myco)) +
+  stat_regline_equation(label.y = 400, aes(label = ..eq.label..)) +
+  stat_regline_equation(label.y = 350, aes(label = ..rr.label..))
+
+plt + facet_wrap(~Myco)
+```
+
+It appears that the correlation between surface area and exudation rate is stronger in EcM species than AM species. We need to know why.
+
+Since we already found out the correlation among root traits including exudation may differ among myco. type, we construct scatterplot Matrix. 
+
+First, let's examine the correlation between root exudation and all root traits.
+
+```{r, echo=FALSE}
+library(car)
+spm(~Exudation_rate+Diam+SRL+SRA+RTD+Mass+Surf_area|Myco, data=rtrait, main="Scatterplot Matrix among root traits")
+```
+
+Second, we separate AM and EcM in examining the correlation between root exudation and all root traits.
+
+For AM,
+```{r, echo=FALSE, eval=TRUE}
+library(ggpmisc)
+library(ggplot2)
+spm(~Exudation_rate+Diam+SRL+SRA+RTD+Mass+Surf_area|Myco, data=rtrait_AM, main="Scatterplot Matrix among root traits: AM trees")
+```
+
+For EcM, 
+```{r, echo=FALSE, eval=TRUE}
+library(ggpmisc)
+library(ggplot2)
+spm(~Exudation_rate+Diam+SRL+SRA+RTD+Mass+Surf_area|Myco, data=rtrait_EcM, main="Scatterplot Matrix among root traits: EcM trees")
+```
