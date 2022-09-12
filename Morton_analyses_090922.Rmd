@@ -1,0 +1,330 @@
+---
+title: "Morton_analyses"
+author: "Young Oh"
+date: '2022-09-09'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+# Working procedure
+
+The Question we are interested in;
+
+1) To what extent does root exudation rate vary among species? [ANOVA, though we're limited by study design - the 4-6 individual trees of each species are all located in the same plot, which isn't ideal for test assumptions.]
+2) Does root exudation rate vary with plant or root traits? Which variables best predict root exudation rates? [ordination/PERMANOVA; mixed linear models that are similar to ANOVA and regressions but take plot-level replicates into account]
+3) What are the relationships between root exudation rates (and other plant and root traits) and soil properties (rhizosphere effects in N cycling; aggregate stability)? [ordination/PERMANOVA; mixed linear models that are similar to ANOVA and regressions but take plot-level replicates into account]
+
+## Before starting to analyze..
+
+- The document will be update in Git hub (https://github.com/oh02rules/PhillipsLab) with the most updated code for the analysis
+- Library list; more to come with multivariate analyses
+```{r echo=FALSE,eval=FALSE}
+library(plotrix)
+library(dplyr)
+library(ggpmisc)
+library(ggplot2)
+library(ggpubr)
+library(magicaxis)
+library(car)
+library(emmeans)
+library(pacman)
+library(tidyverse)
+library(hrbrthemes)
+library(viridis)
+library(ggeffects)
+library(corrplot)
+# do this if needed, install.packages("lmerTest", repos = "http://cran.us.r-project.org")
+library(lmerTest)
+library(ggpmisc)
+library(nortest)
+
+install.packages("lattice")                                  # Install lattice package
+library("lattice")  
+```
+- Importing and creating the env. 
+   1. Fixing up data
+   2. Characterizing the sample distribution
+```{r echo=FALSE,eval=FALSE}
+setwd("/Users/young/Desktop/Git_Phillips_Lab/PhillipsLab/Morton_analyses/")
+exudate <- read.csv("final exudate data_master.csv")
+#generating the dataset with AM only
+exudate_AM <- exudate[exudate$myco %in% c("am"),]
+#generating the dataset with EcM only
+exudate_EcM <- exudate[exudate$myco %in% c("em"),]
+
+#change variable names to make easier
+exudate$total_exudate <- exudate$total_exudate_μg_day
+exudate$mass <- exudate$mass_g
+exudate$tip_mass <- exudate$tip_mass_g
+exudate$length <- exudate$length_cm
+exudate$er_mass_tip <- as.numeric(exudate$er_mass_tip)
+exudate$n <- exudate$X.N
+exudate$c <- exudate$X.C
+exudate$c_n <- exudate$C.N
+
+#remove negative values and two inncaurate pawpaw observations
+exudate <- exudate%>%
+  filter(total_exudate > 1, er_mass < 11000)
+```
+First, the result of the Anderson-Darling test for normality show the exudation measurements are not normally distributed, calling for log-transformation. 
+
+```{r echo=FALSE,eval=TRUE}
+exudate <- read.csv("final exudate data_master.csv")
+library(nortest)
+qqnorm(exudate$total_exudate)
+qqline(exudate$total_exudate)
+ad.test(exudate$total_exudate)
+#The result shows it's not normal, more or less rightly-skewed. Thus, we test if log-transformation is necessary
+qqnorm(log(exudate$total_exudate))
+qqline(log(exudate$total_exudate))
+ad.test(log(exudate$total_exudate))
+
+
+# log transform exudation values to make the data follow the normal distribution
+exudate$er_mass_log <- log(exudate$er_mass)
+exudate$er_length_log <- log(exudate$er_length)
+exudate$er_sa_fine_log <- log(exudate$er_sa_fine)
+exudate$er_sa_log <- log(exudate$er_sa)
+exudate$er_mass_tip_log <- log(exudate$er_mass_tip)
+exudate$total_exudate_log <- log(exudate$total_exudate) 
+
+```
+The second fig. shows log-transformation of the exudation data made distribution normal, allowing us to use best-available stat. methods (p-value of 0.90, meaning log-transformed data is now following the normal distribution. 
+
+# To what extent does root exudation rate vary among species?
+
+Strategy) We use ANOVA, though we're limited by study design in that the 4-6 individual trees of each species are all located in the same plot, which isn't ideal for test assumptions.
+
+## Species differences in exudation rate and net N uptake rate
+
+**Exudation rate (mass- vs area-specific)**
+
+```{r, echo=FALSE, eval=TRUE}
+library(ggplot2)
+library(emmeans)
+library(ggpubr)
+p0 <- ggplot(exudate, aes(x=reorder(species, er_sa_fine_log), y=er_sa_fine_log, fill=species)) + 
+  geom_boxplot() + stat_compare_means(method = "anova", size = 2.5)+
+  xlab("Species") + ylab(expression(log~Exudation~rate~ ~(ugC~d^-1~cm^-2)))+
+  ggtitle("Boxplot for exudation rate per fineroot area for 11 species")+ theme(axis.text.x = element_text(size = 10, angle= 45))
+p0
+p1 <- ggplot(exudate, aes(x=reorder(species, er_mass_log), y=er_mass_log, fill=species)) + 
+  geom_boxplot() + stat_compare_means(method = "anova", size = 2.5)+
+  xlab("Species") + ylab(expression(log~Exudation~rate~ ~(ugC~d^-1~g^-1)))+
+  ggtitle("Boxplot for exudation rate per fineroot mass for 11 species")+ theme(axis.text.x = element_text(size = 10, angle= 45))
+p1
+```
+
+No significant difference among species overall in both area- and mass-specific exudation, while there are differences between area- and mass-specific exudation rate, meaning there are some difference in efficiency of root upon exudation rate (e.g., RTD vs exudation).  
+
+**Net N uptake rate**
+
+```{r, echo=FALSE, eval=TRUE}
+p5 <- ggplot(exudate, aes(x=reorder(species, er_mass_log), y=N_uptake, fill=species)) + 
+  geom_boxplot() + stat_compare_means(method = "anova", size = 2.5)+
+  xlab("Species") + ylab(expression(Net~N~uptake~rate~(mgN~root~g^-1~d^-1)))+
+  ggtitle("Net N uptake rate for 11 species")+ theme(axis.text.x = element_text(size = 10, angle= 45))
+p5
+
+
+```
+
+Although the results of all the species (n=11) show no significant difference in both exudation and net N uptake rate, there is a significant difference within EcM trees. The contrast in species difference between exudation rate and net N uptake rate is interesting in that the variability of net N uptake rates is smaller than that of exudation rates.
+
+```{r, echo=FALSE, eval=FALSE}
+#not for this analysis
+# to see if we can plot two diff. exudation rates side by side for each species -> not working well
+#reshaping exudate data
+
+library(MASS) 
+library(reshape2) 
+library(reshape) 
+
+
+reshape<- exudate[,c("species", "er_mass", "er_sa")]
+head(reshape)
+reshape_1<-melt(reshape, id = "species")
+head(reshape_1)
+p2 <- ggplot(reshape_1, aes(x = variable, y = value, color = species)) +  # ggplot function
+  geom_boxplot()
+p2 + scale_y_continuous(trans='log')
+```
+
+## Representation of species differences nested on plant functional groups (Myco, Phylo, and Leaf)
+
+**Mycorrhizal types (AM vs. EcM)**
+
+When exudation rates and N uptake rates for species are nested on myco. type, the figures show interesting results; exudation rates are significantly different among EM associated species, whereas N uptake are significantly different among AM associated species. We need to know why.  
+
+```{r, echo=FALSE, eval=TRUE}
+#generating the dataset with AM only
+exudate_AM <- exudate[exudate$myco %in% c("am"),]
+#generating the dataset with EcM only
+exudate_EcM <- exudate[exudate$myco %in% c("em"),]
+exudate_AM$er_mass_log <- log(exudate_AM$er_mass)
+exudate_AM$er_sa_fine_log <- log(exudate_AM$er_sa_fine)
+exudate_EcM$er_mass_log <- log(exudate_EcM$er_mass)
+
+p8 <- ggplot(exudate_AM, aes(x=reorder(species, er_sa_fine_log), y=er_sa_fine_log, fill=species)) + 
+  geom_boxplot() +
+  facet_wrap(~myco) + stat_compare_means(method = "anova", size = 2.5)+
+  xlab("Species with MF Type") + ylab(expression(log~Exudation~rate~ ~(ugC~d^-1~cm^-2)))+
+  ggtitle("Area-specific exudation rate among groups: AM Myco. Type") + theme(axis.text.x = element_text(size = 10, angle=0))
+
+p8 + facet_wrap(~myco)
+
+p9 <- ggplot(exudate_EcM, aes(x=reorder(species, er_sa_fine_log), y=er_sa_fine_log, fill=species)) + 
+  geom_boxplot() +
+  facet_wrap(~myco) + stat_compare_means(method = "anova", size = 2.5)+
+  xlab("Species with MF Type") + ylab(expression(log~Exudation~rate~ ~(ugC~d^-1~cm^-2)))+
+  ggtitle("Area-specific exudation rate among groups: EcM Myco. Type") + theme(axis.text.x = element_text(size = 10, angle=0))
+
+p9 + facet_wrap(~myco)
+
+p10 <- ggplot(exudate_AM, aes(x=reorder(species, er_mass_log), y=er_mass_log, fill=species)) + 
+  geom_boxplot() +
+  facet_wrap(~myco) + stat_compare_means(method = "anova", size = 2.5)+
+  xlab("Species with MF Type") + ylab(expression(log~Exudation~rate~ ~(ugC~d^-1~g^-1)))+
+  ggtitle("Mass-specific exudation rate among groups: AM Myco. Type") + theme(axis.text.x = element_text(size = 10, angle=0))
+
+p10 + facet_wrap(~myco)
+
+p11 <- ggplot(exudate_EcM, aes(x=reorder(species, er_mass_log), y=er_mass_log, fill=species)) + 
+  geom_boxplot() +
+  facet_wrap(~myco) + stat_compare_means(method = "anova", size = 2.5)+
+  xlab("Species with MF Type") + ylab(expression(log~Exudation~rate~ ~(ugC~d^-1~g^-1)))+
+  ggtitle("Mass-specific exudation rate among groups: EcM Myco. Type") + theme(axis.text.x = element_text(size = 10, angle=0))
+
+p11 + facet_wrap(~myco)
+```
+
+When separating exudation rates of the species into myco. types, we can observe interesting results showing EcM having significant differences while those of AM trees are not. Especially among EcM trees, as seen in lower exudation rates in hickory and SWO having broadleaf and angiosperm functional type, the differences in plant functional types may play a important role in their lower exudation rates. Brunn et al. (2022) reported no significant differences in area-specific between Fagus sylvatica and Picea abies, while a fraction of photosynthates allocated to exudation increases upon drought treatment for both species. This allows us to ponder whether the current edaphic conditions that vary specific to each monoculture plot may influence exudation rates and corresponding N uptake differences. 
+
+```{r, echo=FALSE, eval=TRUE}
+#generating the dataset with AM only
+exudate_AM <- exudate[exudate$myco %in% c("am"),]
+#generating the dataset with EcM only
+exudate_EcM <- exudate[exudate$myco %in% c("em"),]
+exudate_AM$er_mass_log <- log(exudate_AM$er_mass)
+exudate_EcM$er_mass_log <- log(exudate_EcM$er_mass)
+
+par(mfrow=c(1,2))
+p6 <- ggplot(exudate_AM, aes(x=reorder(species, er_mass_log), y=N_uptake, fill=species)) + 
+  geom_boxplot() +
+  facet_wrap(~myco) + stat_compare_means(method = "anova", size = 2.5)+
+  xlab("Species with MF Type") + ylab(expression(Net~N~uptake~rate~(mgN~root~g^-1~d^-1)))+
+  ggtitle("Net N uptake rate among groups: AM Myco. Type") + theme(axis.text.x = element_text(size = 10, angle=90))
+p6
+
+p7 <- ggplot(exudate_EcM, aes(x=reorder(species, er_mass_log), y=N_uptake, fill=species)) + 
+  geom_boxplot() +
+  facet_wrap(~myco) + stat_compare_means(method = "anova", size = 2.5)+
+  xlab("Species with MF Type") + ylab(expression(Net~N~uptake~rate~(mgN~root~g^-1~d^-1)))+
+  ggtitle("Net N uptake rate among groups: EcM Myco. Type") + theme(axis.text.x = element_text(size = 10, angle=90))
+
+p7
+
+```
+
+Similarly, EcM trees exhibit significant differences in net N uptake rates, while AM trees does not. 
+
+# How did exudation & N uptake differ between myco type, phylo, and leaf habit?
+
+```{r, echo=FALSE, eval=TRUE}
+#generating the dataset with AM only
+exudate_AM <- exudate[exudate$myco %in% c("am"),]
+#generating the dataset with EcM only
+exudate_EcM <- exudate[exudate$myco %in% c("em"),]
+exudate_AM$er_mass_log <- log(exudate_AM$er_mass)
+exudate_EcM$er_mass_log <- log(exudate_EcM$er_mass)
+
+
+p12 <- ggplot(exudate, aes(x=reorder(species, er_mass_log), y=er_mass_log, fill=species)) + 
+  geom_boxplot() +
+  facet_wrap(~phylo) + stat_compare_means(method = "anova", size = 2.5)+
+  xlab("Species with MF Type") + ylab(expression(log~Exudation~rate~ ~(ugC~d^-1~g^-1)))+
+  ggtitle("Mass-specific exudation rate among groups: AM Myco. Type") + theme(axis.text.x = element_text(size = 10, angle=90))
+
+p12 + facet_wrap(~phylo)
+
+p13 <- ggplot(exudate, aes(x=reorder(species, er_mass_log), y=er_mass_log, fill=species)) + 
+  geom_boxplot() +
+  facet_wrap(~leaf) + stat_compare_means(method = "anova", size = 2.5)+
+  xlab("Species with MF Type") + ylab(expression(log~Exudation~rate~ ~(ugC~d^-1~g^-1)))+
+  ggtitle("Mass-specific exudation rate among groups: AM Myco. Type") + theme(axis.text.x = element_text(size = 10, angle=90))
+
+p13 + facet_wrap(~leaf)
+
+```
+
+
+
+**Statisitical Analyses**
+```{r, echo=FALSE, eval=FALSE}
+#scaled by fine root SA
+hist(exudate$er_sa_fine_log)
+qqnorm(exudate$er_sa_fine_log)
+qqline(exudate$er_sa_fine_log)
+```
+
+```{r, echo=FALSE, eval=TRUE}
+#Shapiro-Wilk test (p>0.05 = normal)
+shapiro.test(exudate$er_sa_fine_log)
+#the data is not normal
+
+#ANOVA
+ersa.aov<-aov(er_sa_log ~ species, exudate)
+ersa.aov
+qqnorm(residuals(ersa.aov))
+qqline(residuals(ersa.aov))
+
+shapiro.test(residuals(ersa.aov))
+#get output
+summary(ersa.aov)
+mod_means_contr <- emmeans::emmeans(object = ersa.aov,
+                                    pairwise ~ "species",
+                                    adjust = "tukey")
+mod_means <- multcomp::cld(object = mod_means_contr$emmeans,
+                           Letters = letters)
+mod_means
+```
+
+According to the tukey test, the only difference in exudation rate was between larch and the lowest 4 trees (pawpaw, bald cypress, hickory, and sawara cypress)
+
+# How did exudation & N uptake differ between myco type, phylo, and leaf habit?
+
+```{r, echo=FALSE, eval=TRUE}
+hist(exudate$er_sa_fine_log)
+qqnorm(exudate$er_sa_fine_log)
+qqline(exudate$er_sa_fine_log)
+
+#t.test, assuming log-transformation permits robustness
+
+am<-subset(exudate$er_mass_log, exudate$myco=="am")
+em<-subset(exudate$er_mass_log, exudate$myco=="em")
+
+t.test(er_mass_log ~ myco, data=exudate, alternative=("two.sided"))
+
+qqnorm(am, datax=TRUE)
+qqline(am, datax=TRUE)
+qqnorm(em, datax=TRUE)
+qqline(em, datax=TRUE)
+
+```
+
+Welch's test does not only shows no significance in exudation (log-transformed) between mycorrhizal types, but exudation is not normally distributed.  
+
+**ANOVA using linear mixed model
+
+ANalysis Of VAriance using linear mixed model is robust in that we compare means across more than two populations despite unequal sample sizes (or unbalanced design) and that the data contains continuous response variables and factor variables that defines the groups. 
+
+```{r, echo=FALSE, eval=TRUE}
+lme <- lmer(data = exudate, er_mass_log ~ myco + phylo + myco:phylo + (1|species))
+summary(lme)
+lsmeans(lme, pairwise~myco*phylo, adjust="tukey")
+
+```
+
+No significant difference between myc types or phylo groups, but made a linear mixed model to look at the interaction of myco and phylo. There was a significant difference between EM gymno and EM angio (p < .05). Marginally significant difference between EM gymno and AM gymno (.076).
