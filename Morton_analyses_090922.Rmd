@@ -81,7 +81,6 @@ qqnorm(log(exudate$total_exudate))
 qqline(log(exudate$total_exudate))
 ad.test(log(exudate$total_exudate))
 
-
 # log transform exudation values to make the data follow the normal distribution
 exudate$er_mass_log <- log(exudate$er_mass)
 exudate$er_length_log <- log(exudate$er_length)
@@ -89,6 +88,8 @@ exudate$er_sa_fine_log <- log(exudate$er_sa_fine)
 exudate$er_sa_log <- log(exudate$er_sa)
 exudate$er_mass_tip_log <- log(exudate$er_mass_tip)
 exudate$total_exudate_log <- log(exudate$total_exudate) 
+
+
 
 ```
 The second fig. shows log-transformation of the exudation data made distribution normal, allowing us to use best-available stat. methods (p-value of 0.90, meaning log-transformed data is now following the normal distribution. 
@@ -295,6 +296,8 @@ According to the tukey test, the only difference in exudation rate was between l
 
 # How did exudation & N uptake differ between myco type, phylo, and leaf habit?
 
+**First, we look at the normality of data nested with respect to plant functional groups (i.e., myco, phylo, and leaf types).
+
 ```{r, echo=FALSE, eval=TRUE}
 hist(exudate$er_sa_fine_log)
 qqnorm(exudate$er_sa_fine_log)
@@ -314,17 +317,387 @@ qqline(em, datax=TRUE)
 
 ```
 
-Welch's test does not only shows no significance in exudation (log-transformed) between mycorrhizal types, but exudation is not normally distributed.  
+Welch's test does not only shows no significance in exudation (log-transformed) between mycorrhizal types (p-value=0.135), but exudation is not normally distributed.  
 
-**ANOVA using linear mixed model
+**ANOVA using linear mixed model**
 
 ANalysis Of VAriance using linear mixed model is robust in that we compare means across more than two populations despite unequal sample sizes (or unbalanced design) and that the data contains continuous response variables and factor variables that defines the groups. 
 
-```{r, echo=FALSE, eval=TRUE}
+```{r, echo=TRUE, eval=TRUE}
+library(lme4)
 lme <- lmer(data = exudate, er_mass_log ~ myco + phylo + myco:phylo + (1|species))
 summary(lme)
 lsmeans(lme, pairwise~myco*phylo, adjust="tukey")
 
 ```
 
-No significant difference between myc types or phylo groups, but made a linear mixed model to look at the interaction of myco and phylo. There was a significant difference between EM gymno and EM angio (p < .05). Marginally significant difference between EM gymno and AM gymno (.076).
+No significant difference between myc types or phylo groups, but we constructed a linear mixed model to look at the interaction of myco and phylo. There was a significant difference between EM gymno and EM angio (p < .05). Marginally significant difference between EM gymno and AM gymno (.076).
+
+**Mass-specific exudation rate among plant function groups**
+
+```{r}
+ggplot(exudate, aes(x = myco, y = er_mass_log, fill = phylo)) +
+  geom_boxplot() +
+  labs(x = "Mycorrhizal Type",
+       y = expression(atop("log Exudation Rate", paste((ugC~d^-1~g^-1))))) +
+  scale_x_discrete (limits = c("am", "em"),
+                    labels = c("AM", "ECM")) + stat_compare_means(method = "anova", size = 3.5) +
+  theme_linedraw() +
+  geom_boxplot(notch=F,
+               lwd=.5,
+               stat="boxplot",
+               outlier.shape = NA) +
+  theme(panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_rect(fill=NA, colour = "black", size=.7),
+        axis.title.x = element_text(margin = margin(t = 10, b=5), size=20),
+        axis.title.y = element_text(margin = margin(l = 5, r=8), size=20),
+        axis.text.x= element_text(margin = margin(t = 10), size=12),
+        axis.text.y=element_text(margin = margin(r = 10), size=12),
+        legend.title = element_text(colour="black", size=16),
+        legend.text = element_text(size=14)) +
+  scale_fill_manual(name = "Phylogenetic Group",
+                    limits = c("angio", "gymno"),
+                    labels = c("Angiosperm", "Gymnosperm"),
+                    values = c("#CFB436", "#438029")) +
+  ggtitle("Mass-specific exudation rate among groups: Myco.+Phylo Type") + theme(axis.text.x = element_text(size = 10, angle=0)) +
+  expand_limits(y = 9.25)
+```
+
+EcM gymnosperm (larch, spruce, hemlock) and EcM angiosperm (hickory, SWO) show a significant difference in exudation rate, while in AM trees there is no difference between phylogenetic group. We should look into the patterns of not having much differences with respect to plant function types may show different above- and belowground strategies.   
+
+**Net N uptake rate among plant function groups**
+```{r}
+ggplot(exudate, aes(x = myco, y = N_uptake, fill = phylo)) +
+  geom_boxplot() +
+  labs(x = "Mycorrhizal Type",
+       y = expression(atop("log net N uptake Rate", paste((mgN~root~g^-1~d^-1))))) +
+  scale_x_discrete (limits = c("am", "em"),
+                    labels = c("AM", "ECM")) + stat_compare_means(method = "anova", size = 3.5) +
+  theme_linedraw() +
+  geom_boxplot(notch=F,
+               lwd=.5,
+               stat="boxplot",
+               outlier.shape = NA) +
+  theme(panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_rect(fill=NA, colour = "black", size=.7),
+        axis.title.x = element_text(margin = margin(t = 10, b=5), size=20),
+        axis.title.y = element_text(margin = margin(l = 5, r=8), size=20),
+        axis.text.x= element_text(margin = margin(t = 10), size=12),
+        axis.text.y=element_text(margin = margin(r = 10), size=12),
+        legend.title = element_text(colour="black", size=16),
+        legend.text = element_text(size=14)) +
+  scale_fill_manual(name = "Phylogenetic Group",
+                    limits = c("angio", "gymno"),
+                    labels = c("Angiosperm", "Gymnosperm"),
+                    values = c("#CFB436", "#438029")) +
+  ggtitle("Net N uptake rate among groups: Myco.+Phylo Type") + theme(axis.text.x = element_text(size = 10, angle=0)) +
+  expand_limits(y = 9.25)
+```
+
+## 2) Does root exudation rate vary with plant or root traits? Which variables best predict root exudation rates?
+
+To answer the questions, we need to construct mixed linear models that are similar to ANOVA and regressions but take plot-level replicates into account. To be continued.
+
+First, we generate a correlation matrix plot (called a Correlogram); Positive correlations are displayed in a blue scale while negative correlations are displayed in a red scale.
+
+```{r, echo=FALSE, eval=TRUE}
+# More visualization with bivariate analysis
+
+#exudate$srl_log<- log(exudate$srl) 
+#exudate$rtd_log<- log(exudate$rtd)
+#exudate$X.N_log<- log(exudate$X.N)
+#exudate$C.N_log<- log(exudate$C.N)
+#exudate$mass_g_log<- log(exudate$mass_g)
+#exudate$tip_mass_g_log<- log(exudate$tip_mass_g)
+#exudate$diameter_log<- log(exudate$diameter)
+#exudate$volume_log<- log(exudate$volume)
+#exudate$sa_fine_log<- log(exudate$sa_fine)
+#exudate$N_uptake_log<- log(exudate$N_uptake) 
+#exudate$total_exudate_log <- log(exudate$total_exudate) 
+
+library(GGally)
+library(ggplot2)
+library(Hmisc)
+setwd("/Users/young/Desktop/Git_Phillips_Lab/PhillipsLab/Morton_analyses/")
+exudate <- read.csv("final exudate data_master.csv")
+
+exudate$total_exudate <- exudate$total_exudate_μg_day
+exudate$mass <- exudate$mass_g
+exudate$tip_mass <- exudate$tip_mass_g
+exudate$length <- exudate$length_cm
+exudate$er_mass_tip <- as.numeric(exudate$er_mass_tip)
+exudate$n <- exudate$X.N
+exudate$c <- exudate$X.C
+exudate$c_n <- exudate$C.N
+exudate$total_exudate_log <- log(exudate$total_exudate) 
+exudate$N_uptake_log<- log(exudate$N_uptake) 
+
+
+ggpairs(exudate, columns = c("total_exudate_log","N_uptake_log", "srl", "rtd","sra","length","diameter","sa_fine", "n","mass_g","branching_intensity", "volume"), title = "Bivariate analysis of Exudation rates vs. root traits (alpha=0.05)", upper = list(continuous = wrap("cor",
+        size = 3)),
+    lower = list(continuous = wrap("smooth",
+        alpha = 0.5,
+        size = 0.1)),
+    mapping = aes(color = myco))
+
+```
+
+Based on the bivariate analysis of total exudation rates (log-transformed) vs. root traits, we examine more closely on the relationship of exudation rate with the following fine root traits; net N uptake rate, RTD, fineroot surface area, biomass, and branching intensity which exhibit statistical significance. 
+
+The pearson's correlation matrix shows that exudation rates in these samples are correlated with net N uptake rate, RTD, fine root surface area, biomass, and branching intensity, while the degree of correlation differ among myco types. Especially, exudation rate of EM species can be explained by greater number of root morphological traits such as length, Diam, RTD, Surf_area, Root_vol, and volume. The surface area demonstrates the strongest relationship with exudation rate, and other traits that share root area in their measurements also show strong correlation. We need to investigate if exudation rates of EM species are really more correlated with root morphology and why. 
+
+## In-depth correlation analyses
+
+We built to investigate the correlation of specific root traits that appear to have significant relationship with exudation rate.
+
+* Note: all the correlation coefficient displayed in the figures below are the coefficient of determination (R squared, not squared Pearson correlation coefficient (r squared)). 
+
+# Does root tissue density (RTD) corelate with exudate production and the correlation varies among plant functional groups?
+
+# Exudation rate vs. RTD
+
+```{r, echo=FALSE, eval=TRUE}
+#adding group means for each species to the plot
+library(ggpmisc)
+library(dplyr) 
+#taking group mean
+
+gd <- exudate %>%  group_by(species) %>% summarise(rtd = mean(rtd),
+                  total_exudate_log  = mean(total_exudate_log))
+gd
+
+plot_RTD_spp_mean <- ggplot(exudate, aes(x = rtd, y = total_exudate_log)) +
+geom_point(alpha = .5, aes(color=species, shape=leaf)) + stat_poly_eq(formula = y ~ x, aes(label = paste(..eq.label.., ..rr.label.., ..p.value.label.., sep = "*`,`~")), parse = TRUE, label.x.npc = "right", vstep = 0.05) +  geom_point(data = gd, size = 4, aes(color=species)) +  theme_bw() + guides(color = guide_legend("species"),  shape = guide_legend("Species")) + labs(title = "Relationship of root exudation with RTD") + xlab(expression(RTD~(g~cm^-3))) + ylab(expression(Total~log~Exudate~ ~(ugC~day^-1)))
+#geom_smooth(method = "lm")
+plot_RTD_spp_mean + geom_smooth(method = "lm")
+```
+Among 11 species we can't find a significant relationship between RTD and exudation rate. We nested values to mycorrhizal groups to see if the strength of relationship vary among myco. groups.
+
+# Exudation rate vs. RTD nested in diff. functional groups
+
+```{r, echo=FALSE, eval=TRUE}
+library(ggpmisc)
+
+plt <- ggplot(exudate,aes(x = rtd, y = total_exudate_log)) + 
+  geom_point(alpha = .75, aes(color=species, shape=phylo)) + stat_poly_eq(formula = y ~ x, aes(label = paste(..eq.label.., ..rr.label.., ..p.value.label.., sep = "*`,`~")), parse = TRUE, size = 2.4, label.x.npc = "right", vstep = 0.05) +  theme_bw() + guides(color = guide_legend("species"),  shape = guide_legend("phylo")) + labs(title = "Relationship of root exudation with RTD (AM vs. EcM)") + xlab(expression(RTD~(g~cm^-3))) + ylab(expression(Exudation~rate~ ~(ugC~day^-1)))
+#another way to print stat. info.  
+#stat_regline_equation(label.y = 400, aes(label = ..eq.label..)) +
+  #stat_regline_equation(label.y = 350, aes(label = ..rr.label..)) + stat_fit_glance(method = 'lm',
+                  #method.args = list(formula = "y~x"), geom = 'text', aes(label.y = 300, label = paste("P = ", #signif(..p.value.., digits = 4), sep = "")))
+
+plt + facet_wrap(~myco, scales = "free") + geom_smooth(method = "lm") 
+```
+
+The relationship of exudation rate with RTD nested in myco types exhibits that only EcM trees have a significant negative correlation (R-squared = 0.35, p-value <0.001). The figures exhibit the stronger correlation between exudation rate and RTD in EcM trees. RTD is relevant to fast root metabolism (termed as explitative strategy), while it is independent of effective morphological trait such as SRL (Sun et al. 2020; Wen et al. 2021). Since faster root exudation is thought to be related to low RTD (low root construction cost), to see if the tight correlation of exudation rate with root metabolic traits (root[N] and respiration) and RTD as suggested by Sun et al. (2020), we need to examine root[N] more closely. This needs further cross examination of the correlation between exudation rate and SRL suggested by Wang et al. (2019) and Meier et al. (2019). 
+
+```{r, echo=FALSE, eval=TRUE}
+library(ggpmisc)
+
+plt <- ggplot(exudate,aes(x = rtd, y = total_exudate_log)) + 
+  geom_point(alpha = .75, aes(color=species, shape=phylo)) + stat_poly_eq(formula = y ~ x, aes(label = paste(..eq.label.., ..rr.label.., ..p.value.label.., sep = "*`,`~")), parse = TRUE, size = 2.4, label.x.npc = "right", vstep = 0.05) +  theme_bw() + guides(color = guide_legend("species"),  shape = guide_legend("phylo")) + labs(title = "Relationship of root exudation with RTD (AM vs. EcM)") + xlab(expression(RTD~(g~cm^-3))) + ylab(expression(Exudation~rate~ ~(ugC~day^-1)))
+#another way to print stat. info.  
+#stat_regline_equation(label.y = 400, aes(label = ..eq.label..)) +
+  #stat_regline_equation(label.y = 350, aes(label = ..rr.label..)) + stat_fit_glance(method = 'lm',
+                  #method.args = list(formula = "y~x"), geom = 'text', aes(label.y = 300, label = paste("P = ", #signif(..p.value.., digits = 4), sep = "")))
+
+plt + facet_wrap(~phylo, scales = "free") + geom_smooth(method = "lm") 
+plt + facet_wrap(~leaf, scales = "free") + geom_smooth(method = "lm") 
+```
+
+As for other functional groups (i.e., phylo and leaf types), exudation rate show no relationship with RTD.
+
+# Does net N uptake corelate with exudate production?
+
+```{r, echo=FALSE, eval=TRUE}
+#adding group means for each species to the plot
+#taking group mean
+gd <- exudate %>%  group_by(species) %>% summarise(N_uptake_log = mean(N_uptake_log),
+                  total_exudate_log  = mean(total_exudate_log))
+gd
+
+plot_RTD_spp_mean <- ggplot(exudate, aes(x = N_uptake_log, y = total_exudate_log)) +
+geom_point(alpha = .5, aes(color=species, shape=phylo)) + stat_poly_eq(formula = y ~ x, aes(label = paste(..eq.label.., ..rr.label.., ..p.value.label.., sep = "*`,`~")), parse = TRUE, label.x.npc = "right", vstep = 0.05) +  geom_point(data = gd, size = 4, aes(color=species)) +  theme_bw() + guides(color = guide_legend("species"),  shape = guide_legend("Species")) + labs(title = "Relationship of root exudation with Net N uptake rate") + xlab(expression(Net~N~ uptake~rate~(mgN~root~d^-1))) + ylab(expression(Total~log~Exudate~ ~(ugC~day^-1)))
+#geom_smooth(method = "lm")
+plot_RTD_spp_mean + geom_smooth(method = "lm")
+
+```
+
+It needs some interpretation....
+
+
+```{r, echo=FALSE, eval=FALSE}
+gd2 <- exudate %>%  group_by(species) %>% summarise(N_uptake_log = mean(N_uptake_log),
+                  total_exudate_log  = mean(total_exudate_log))
+gd2
+
+plot_N_uptake_spp_mean <- ggplot(exudate, aes(x = N_uptake_log, y = total_exudate_log)) +
+geom_point(alpha = .5, aes(color=species, shape=phylo)) + stat_poly_eq(formula = y ~ x, aes(label = paste(..eq.label.., ..rr.label.., ..p.value.label.., sep = "*`,`~")), parse = TRUE, label.x.npc = "right", vstep = 0.05) +  geom_point(data = gd2, size = 4, aes(color=species)) +  theme_bw() + guides(color = guide_legend("species"),  shape = guide_legend("phylo")) + labs(title = "Relationship of root exudation with Net N uptake rate") + xlab(expression(Net~N~ uptake~rate~(mgN~root~d^-1))) + ylab(expression(Total~log~Exudate~ ~(ugC~day^-1)))
+#geom_smooth(method = "lm")
+plot_N_uptake_spp_mean + geom_smooth(method = "lm")
+
+```
+
+# Do the relatioinships vary among diff. functional groups?
+
+```{r, echo=FALSE, eval=TRUE}
+library(ggpmisc)
+
+plt <- ggplot(exudate,aes(x = N_uptake_log, y = total_exudate_log)) + 
+  geom_point(alpha = .75, aes(color=species, shape=phylo)) + stat_poly_eq(formula = y ~ x, aes(label = paste(..eq.label.., ..rr.label.., ..p.value.label.., sep = "*`,`~")), parse = TRUE, size = 2.4, label.x.npc = "right", vstep = 0.05) +  theme_bw() + guides(color = guide_legend("species"),  shape = guide_legend("phylo")) + labs(title = "Relationship of root exudation with Net N uptake rate (AM vs. EcM)") + xlab(expression(Net~N~ uptake~rate~(mgN~root~d^-1))) + ylab(expression(Exudation~rate~ ~(ugC~day^-1)))
+#another way to print stat. info.  
+#stat_regline_equation(label.y = 400, aes(label = ..eq.label..)) +
+  #stat_regline_equation(label.y = 350, aes(label = ..rr.label..)) + stat_fit_glance(method = 'lm',
+                  #method.args = list(formula = "y~x"), geom = 'text', aes(label.y = 300, label = paste("P = ", #signif(..p.value.., digits = 4), sep = "")))
+
+plt + facet_wrap(~myco, scales = "free") + geom_smooth(method = "lm") 
+plt + facet_wrap(~phylo, scales = "free") + geom_smooth(method = "lm") 
+plt + facet_wrap(~leaf, scales = "free") + geom_smooth(method = "lm") 
+```
+
+The correlation between exudation and net N uptake rate for both myco. and phylo. types show positive correlation while the strength of relationships varies among plant functional types. Need to know what the main drivers would be to explain the relationships.
+
+# Does amount of root corelate with carbon production?
+
+```{r, echo=FALSE, eval=TRUE}
+#adding group means for each species to the plot
+
+#taking group mean
+
+gd <- exudate %>%  group_by(species) %>% summarise(mass_g = mean(mass_g),
+                  total_exudate_log  = mean(total_exudate_log))
+gd
+
+plot_mass_g_spp_mean <- ggplot(exudate, aes(x = mass_g, y = total_exudate_log)) +
+geom_point(alpha = .5, aes(color=species, shape=leaf)) + stat_poly_eq(formula = y ~ x, aes(label = paste(..eq.label.., ..rr.label.., ..p.value.label.., sep = "*`,`~")), parse = TRUE, label.x.npc = "right", vstep = 0.05) +  geom_point(data = gd, size = 4, aes(color=species)) +  theme_bw() + guides(color = guide_legend("species"),  shape = guide_legend("Species")) + labs(title = "Relationship of root exudation with root mass") + xlab(expression(Root~mass~(g))) + ylab(expression(Total~log~Exudate~ ~(ugC~day^-1)))
+#geom_smooth(method = "lm")
+plot_mass_g_spp_mean + geom_smooth(method = "lm")
+```
+
+This positive strong correlation (R-squared = 0.28, p-value <0.001) represents that the more mass in a cuvette leading to higher exudation, showing our measurements were working well.  
+
+
+# Does the strength of correlation vary among functional groups?
+```{r, echo=FALSE, eval=TRUE}
+plt <- ggplot(exudate,aes(x = mass_g, y = total_exudate_log)) + 
+  geom_point(alpha = .75, aes(color=species, shape=phylo)) + stat_poly_eq(formula = y ~ x, aes(label = paste(..eq.label.., ..rr.label.., ..p.value.label.., sep = "*`,`~")), parse = TRUE, size = 2.4, label.x.npc = "right", vstep = 0.05) +  theme_bw() + guides(color = guide_legend("species"),  shape = guide_legend("phylo")) + labs(title = "Relationship of root exudation with root biomass (myco, phylo, leaf types)") + xlab(expression(Root~mass~(g))) + ylab(expression(Exudation~rate~ ~(ugC~day^-1)))
+#another way to print stat. info.  
+#stat_regline_equation(label.y = 400, aes(label = ..eq.label..)) +
+  #stat_regline_equation(label.y = 350, aes(label = ..rr.label..)) + stat_fit_glance(method = 'lm',
+                  #method.args = list(formula = "y~x"), geom = 'text', aes(label.y = 300, label = paste("P = ", #signif(..p.value.., digits = 4), sep = "")))
+
+plt + facet_wrap(~myco, scales = "free") + geom_smooth(method = "lm") 
+plt + facet_wrap(~phylo, scales = "free") + geom_smooth(method = "lm") 
+plt + facet_wrap(~leaf, scales = "free") + geom_smooth(method = "lm") 
+
+```
+
+The relationship of root exudation with net N uptake rate exhibits different degrees of correlation in 3 different plant functional groups (myco, phylo, and leaf types). Generally, in EcM and gymnosperm we can find stronger relationships.
+
+# Other important root traits that show insignificant correlation; srl and sra
+
+** Does net SRL correlate with exudate production?
+
+```{r, echo=FALSE, eval=TRUE}
+#adding group means for each species to the plot
+
+#taking group mean
+
+gd <- exudate %>%  group_by(species) %>% summarise(srl = mean(srl),
+                  total_exudate_log  = mean(total_exudate_log))
+gd
+
+plot_mass_g_spp_mean <- ggplot(exudate, aes(x = srl, y = total_exudate_log)) +
+geom_point(alpha = .5, aes(color=species, shape=myco)) + stat_poly_eq(formula = y ~ x, aes(label = paste(..eq.label.., ..rr.label.., ..p.value.label.., sep = "*`,`~")), parse = TRUE, label.x.npc = "right", vstep = 0.05) +  geom_point(data = gd, size = 4, aes(color=species)) +  theme_bw() + guides(color = guide_legend("species"),  shape = guide_legend("Species")) + labs(title = "Relationship of root exudation with specific root length (SRL)") + xlab(expression(SRL~(cm^2~g^-1))) + ylab(expression(Total~log~Exudate~ ~(ugC~day^-1)))
+#geom_smooth(method = "lm")
+plot_mass_g_spp_mean + geom_smooth(method = "lm")
+```
+
+Clearly, our measurements did not show any significant correlation between exudation and specific root length. Thus, we examine if root length alone may correlate to exudation rate. 
+
+# Other important root traits that show insignificant correlation; root length vs. exudation
+
+```{r, echo=FALSE, eval=TRUE}
+#adding group means for each species to the plot
+
+#taking group mean
+
+gd <- exudate %>%  group_by(species) %>% summarise(length = mean(length),
+                  total_exudate_log  = mean(total_exudate_log))
+gd
+
+plot_mass_g_spp_mean <- ggplot(exudate, aes(x = length, y = total_exudate_log)) +
+geom_point(alpha = .5, aes(color=species, shape=myco)) + stat_poly_eq(formula = y ~ x, aes(label = paste(..eq.label.., ..rr.label.., ..p.value.label.., sep = "*`,`~")), parse = TRUE, label.x.npc = "right", vstep = 0.05) +  geom_point(data = gd, size = 4, aes(color=species)) +  theme_bw() + guides(color = guide_legend("species"),  shape = guide_legend("Species")) + labs(title = "Relationship of root exudation with root length") + xlab(expression(Root~length~(cm))) + ylab(expression(Total~log~Exudate~ ~(ugC~day^-1)))
+#geom_smooth(method = "lm")
+plot_mass_g_spp_mean + geom_smooth(method = "lm")
+```
+
+# Does the strength of correlation between  vary among functional groups?
+
+```{r, echo=FALSE, eval=TRUE}
+plt <- ggplot(exudate,aes(x = length, y = total_exudate_log)) + 
+  geom_point(alpha = .75, aes(color=species, shape=phylo)) + stat_poly_eq(formula = y ~ x, aes(label = paste(..eq.label.., ..rr.label.., ..p.value.label.., sep = "*`,`~")), parse = TRUE, size = 2.4, label.x.npc = "right", vstep = 0.05) +  theme_bw() + guides(color = guide_legend("species"),  shape = guide_legend("phylo")) + labs(title = "Relationship of root exudation with root biomass (myco, phylo, leaf types)") + xlab(expression(Root~length~(cm))) + ylab(expression(Exudation~rate~ ~(ugC~day^-1)))
+#another way to print stat. info.  
+#stat_regline_equation(label.y = 400, aes(label = ..eq.label..)) +
+  #stat_regline_equation(label.y = 350, aes(label = ..rr.label..)) + stat_fit_glance(method = 'lm',
+                  #method.args = list(formula = "y~x"), geom = 'text', aes(label.y = 300, label = paste("P = ", #signif(..p.value.., digits = 4), sep = "")))
+
+plt + facet_wrap(~myco, scales = "free") + geom_smooth(method = "lm") 
+plt + facet_wrap(~phylo, scales = "free") + geom_smooth(method = "lm") 
+plt + facet_wrap(~leaf, scales = "free") + geom_smooth(method = "lm") 
+
+```
+
+The notable difference in the correlation of root exudation with length and SRL is not only interesting but it also signifies the importance in the potential of different morphologies driving differential effects on the rhizosphere. We need to decipher the implication more.
+
+Given the high correlation between root mass and length, more root segments lead to more exudation, representing the important roles of RTD that can be translated into root consruction cost and different foraging strategies. 
+
+# Other important root traits that show insignificant correlation; branching intensity vs. exudation
+
+```{r, echo=FALSE, eval=TRUE}
+plt <- ggplot(exudate,aes(x = branching_intensity, y = total_exudate_log)) + 
+  geom_point(alpha = .75, aes(color=species, shape=phylo)) + stat_poly_eq(formula = y ~ x, aes(label = paste(..eq.label.., ..rr.label.., ..p.value.label.., sep = "*`,`~")), parse = TRUE, size = 2.4, label.x.npc = "right", vstep = 0.05) +  theme_bw() + guides(color = guide_legend("species"),  shape = guide_legend("phylo")) + labs(title = "Relationship of root exudation with branching intensity (myco, phylo, leaf types)") + xlab(expression(Branching~intensity)) + ylab(expression(Exudation~rate~ ~(ugC~day^-1)))
+#another way to print stat. info.  
+#stat_regline_equation(label.y = 400, aes(label = ..eq.label..)) +
+  #stat_regline_equation(label.y = 350, aes(label = ..rr.label..)) + stat_fit_glance(method = 'lm',
+                  #method.args = list(formula = "y~x"), geom = 'text', aes(label.y = 300, label = paste("P = ", #signif(..p.value.., digits = 4), sep = "")))
+
+plt + facet_wrap(~myco, scales = "free") + geom_smooth(method = "lm") 
+plt + facet_wrap(~phylo, scales = "free") + geom_smooth(method = "lm") 
+plt + facet_wrap(~leaf, scales = "free") + geom_smooth(method = "lm") 
+
+```
+
+In the relationship between exudation and branching intensity, only EcM and gymnosperm group shows a significant relationships. We need to know why and what effects branching intensity may have on euxdation rate. 
+
+
+```{r, echo=FALSE, eval=TRUE}
+library(permute)
+library(lattice)
+library(vegan)
+
+PCA_rtrait <- read.csv("Exudation_Collection_compiled_072822.csv")
+
+#head(PCA_rtrait)
+
+rtrait_new <- subset (PCA_rtrait, select = -c(SampleID,Myco,Phylo,Leaf,Tip_Mass))
+rda_PCA_rtrait <- rda(rtrait_new[,-1], scale=TRUE)
+#plot(rda_PCA_rtrait)
+biplot(rda_PCA_rtrait, type = c("text", "points")) 
+#summary(rda_PCA_rtrait, display=NULL)
+#screeplot(rda_PCA_rtrait, main=NULL)
+#screeplot(rda_PCA_rtrait, main=NULL, bstick=T, type='l')
+
+#An example of cluster analysis 
+#plot(hclust(dist(scale(rtrait[,-c(1:5)]))))
+
+#An example of PerMANOVA (Permutational ANOVA) analysis 
+#adonis(vegdist(rtrait[,6:14]) ~ Myco*Species, data=rtrait)
+
+#res.man <- manova(cbind(Exudation_rate, RTD) ~ Species, data = rtrait)
+#summary(res.man)
+
+```
+I need a special lesson how to consruct PCA plots and what the whole procedure means.
+
