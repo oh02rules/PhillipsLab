@@ -5,8 +5,8 @@ date: '2022-09-09'
 output: html_document
 ---
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+```{r setup, include=FALSE} 
+knitr::opts_chunk$set(warning = FALSE, message = FALSE) 
 ```
 # Working procedure
 
@@ -201,7 +201,7 @@ p11 <- ggplot(exudate_EcM, aes(x=reorder(species, er_mass_log), y=er_mass_log, f
 p11 + facet_wrap(~myco)
 ```
 
-When separating exudation rates of the species into myco. types, we can observe interesting results showing EcM having significant differences while those of AM trees are not. Especially among EcM trees, as seen in lower exudation rates in hickory and SWO having broadleaf and angiosperm functional type, the differences in plant functional types may play a important role in their lower exudation rates. Brunn et al. (2022) reported no significant differences in area-specific between Fagus sylvatica and Picea abies, while a fraction of photosynthates allocated to exudation increases upon drought treatment for both species. This allows us to ponder whether the current edaphic conditions that vary specific to each monoculture plot may influence exudation rates and corresponding N uptake differences. 
+When separating exudation rates of the species into myco. types, we can observe interesting results showing EcM having significant differences while those of AM trees are not. Especially among EcM trees, as seen in lower exudation rates in hickory and SWO having broadleaf and angiosperm functional type, the differences in plant functional types may play an important role in their lower exudation rates. Brunn et al. (2022) reported no significant differences in area-specific between Fagus sylvatica and Picea abies, while a fraction of photosynthates allocated to exudation increases upon drought treatment for both species. This allows us to ponder whether the current edaphic conditions that vary specific to each monoculture plot may influence exudation rates and corresponding N uptake differences. 
 
 ```{r, echo=FALSE, eval=TRUE}
 #generating the dataset with AM only
@@ -335,7 +335,7 @@ No significant difference between myc types or phylo groups, but we constructed 
 
 **Mass-specific exudation rate among plant function groups**
 
-```{r}
+```{r, echo=FALSE, eval=TRUE}
 ggplot(exudate, aes(x = myco, y = er_mass_log, fill = phylo)) +
   geom_boxplot() +
   labs(x = "Mycorrhizal Type",
@@ -367,7 +367,7 @@ ggplot(exudate, aes(x = myco, y = er_mass_log, fill = phylo)) +
 EcM gymnosperm (larch, spruce, hemlock) and EcM angiosperm (hickory, SWO) show a significant difference in exudation rate, while in AM trees there is no difference between phylogenetic group. We should look into the patterns of not having much differences with respect to plant function types may show different above- and belowground strategies.   
 
 **Net N uptake rate among plant function groups**
-```{r}
+```{r, echo=FALSE, eval=TRUE}
 ggplot(exudate, aes(x = myco, y = N_uptake, fill = phylo)) +
   geom_boxplot() +
   labs(x = "Mycorrhizal Type",
@@ -402,7 +402,7 @@ To answer the questions, we need to construct mixed linear models that are simil
 
 First, we generate a correlation matrix plot (called a Correlogram); Positive correlations are displayed in a blue scale while negative correlations are displayed in a red scale.
 
-```{r, echo=FALSE, eval=TRUE}
+```{r, echo=FALSE, eval=TRUE, warnings=FALSE}
 # More visualization with bivariate analysis
 
 #exudate$srl_log<- log(exudate$srl) 
@@ -473,6 +473,7 @@ geom_point(alpha = .5, aes(color=species, shape=leaf)) + stat_poly_eq(formula = 
 #geom_smooth(method = "lm")
 plot_RTD_spp_mean + geom_smooth(method = "lm")
 ```
+
 Among 11 species we can't find a significant relationship between RTD and exudation rate. We nested values to mycorrhizal groups to see if the strength of relationship vary among myco. groups.
 
 # Exudation rate vs. RTD nested in diff. functional groups
@@ -671,6 +672,7 @@ plt + facet_wrap(~leaf, scales = "free") + geom_smooth(method = "lm")
 
 In the relationship between exudation and branching intensity, only EcM and gymnosperm group shows a significant relationships. We need to know why and what effects branching intensity may have on euxdation rate. 
 
+# Principal component analysis (PCA) of 11 fine-root functional traits
 
 ```{r, echo=FALSE, eval=TRUE}
 library(permute)
@@ -699,5 +701,25 @@ biplot(rda_PCA_rtrait, type = c("text", "points"))
 #summary(res.man)
 
 ```
-I need a special lesson how to consruct PCA plots and what the whole procedure means.
 
+I need a special lesson how to consruct PCA plots and what the whole procedure means. How can I test which traits show significantly different functional trait cordination with MANOVA?
+
+## Additional data to come
+
+0. Three soil depth (0-5, 5-10, 10-15cm) 
+1. Soil basic properties (e.g., C:N, pH, microbial C&N)
+2. Enzyme activities
+3. N cycling
+4. [C] and [N] in POM vs. MAOM
+5. Fungal biomass 
+6. Incorporating the anaylsis on phylogenetic signals
+
+# Future questions to ponder
+
+1. Is root exudation active or passive process? Does it vary depending on certain conditions?
+2. Chemical composition of exudates; 
+  - Can trees actively modulate exudation contents?
+  - Does the consequence arise from differential responses of rhizosphere microbes?
+3. More in- depth investigation of consequence of exudation on SOM dynamics
+
+Thank you!!
